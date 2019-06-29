@@ -1,9 +1,17 @@
 # PrusaSlicer advanced filament change
+based on PrusaSlicer 2.0.0 on Windows
 
 ## Overview
 This Python script allows a 'real' filament change in PrusaSlicer. By default the PrusaSlicer insert a M600 command for change the color of filament. In this case of color change the properties of the different filaments aren't considered.
 
 With this script you can use your favorite filament profiles for generating multi color objects. The settings for the different materials like the filament diameter, flow and temperature are considered in the slicing process.
+
+What does this script exactly do on color change?
+
+1. Move to parking position
+2. Preheat for filament change (PLA - 220°C, PETG - 250°C)
+3. Resume to temperature of following filament, also all other properties
+4. Continue printing
 
 ## Installation
 
