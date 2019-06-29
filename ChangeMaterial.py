@@ -1,58 +1,63 @@
 import re, sys, os
 
-# Filenames
+# Input and output files
 sourceFile = str(sys.argv[1])
-fullPath = re.search(r'(^[A-Z].+).gcode', sourceFile)
+fullPath = re.search(r'(.+).gcode', sourceFile)
 outputFile = fullPath.group(1) + "_multi_color.gcode"
+generateNewFile = False
 
 # Custom gcode for color change
-comment = "; ### Change filament with Python ###"
-beep = "M300 P1000 S4000"
-parkingPos = "G0 X190 Y20"
-pauseCommand = ";@pause"
+comment = "; Change filament"
+beep = "M300 P1000 S4000"       # Signal for filament change procedure
+parkingPos = "X190 Y20"         # Define custom parking position
+pauseCommand = "M600"           # 'M600' by default, ';@pause' is used for Repetier Server  
 nl = "\n"
 
 # Temperature for filament change
-preheatTemp = ""
+if "PET" in sourceFile:
+    preheatTemp = "250"
+else:
+    preheatTemp = "220"
 
-# Temperatures for used filaments
-filamentTemp = []
-listIndex = 0
-
-# Variables for testing
-countExtr = 0
-replaceTool = 0
+# Temperatures for used filaments (5 extruders by default)
+filamentTemp = ["0","1","2","3","4"]
 
 # Search for defined temperatures and tool changes
-searchForTemp = r'M104 S(\d{3}) T[1-9] ; set temperature'
-searchForTool = r'^T[1-9]'
+searchForTemp = r'M104 S(\d{3}) T(\d) ; set temperature'
+searchForTool = r'^T(\d)'
+ignoreFirstTool = False
 
+# Open needed files
 fileObjectIn = open(sourceFile)
 fileObjectOut = open(outputFile, "w")
 
-# Check material for preheat temperature
-if "PLA" in sourceFile:
-    preheatTemp = "220"
-elif "PET" in sourceFile:
-    preheatTemp = "250"
+# Author comment
+fileObjectOut.write("; This file was modified by Python script 'PrusaSlicer advanced filament change' by Hancoki." + nl)
+fileObjectOut.write("; Find more information on https://github.com/Hancoki/PrusaSlicer-advanced-filament-change" + nl + nl)
 
 # Search and replace in gcode
 for line in fileObjectIn:
     matchTemp = re.search(searchForTemp, line)
     matchTool = re.search(searchForTool, line)
     if matchTemp:
-        countExtr += 1
-        filamentTemp.append(matchTemp.group(1))
+        generateNewFile = True
+        filamentTemp[int(matchTemp.group(2))] = matchTemp.group(1)
         fileObjectOut.write(line)
     elif matchTool:
-        replaceTool += 1
-        fileObjectOut.write(comment + nl + beep + nl + "G91" + nl + "M104 S" + preheatTemp + nl + "G0 Z15" + nl + "G90" + nl + parkingPos + nl + pauseCommand + nl + "M109 R" + str(filamentTemp[listIndex]) + nl + beep + nl + comment + nl)
-        listIndex += 1
+        if ignoreFirstTool:
+            fileObjectOut.write(comment + nl + beep + nl + "G91" + nl + "M104 S" + preheatTemp + nl + "G0 Z15" + nl + "G90" + nl + "G0 " + parkingPos + nl + pauseCommand + nl + "M109 R" + filamentTemp[int(matchTool.group(1))] + nl + beep + nl + comment + nl)
+        else:
+            fileObjectOut.write(line)
+            ignoreFirstTool = True
     else:
         fileObjectOut.write(line)
 
+# Close used files
 fileObjectIn.close()
 fileObjectOut.close()
 
-# Remove the sourcefile
-os.remove(sourceFile)
+# Remove unneeded file
+if generateNewFile:
+    os.remove(sourceFile)
+else:
+    os.remove(outputFile)
