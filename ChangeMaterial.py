@@ -6,12 +6,20 @@ fullPath = re.search(r'(.+).gcode', sourceFile)
 outputFile = fullPath.group(1) + "_multi_color.gcode"
 generateNewFile = False
 
+# True - For using a print server (f.e. OctoPrint or Repetier Server) (default)
+# False - For printing from SD card
+usePrintServer = True
+
 # Custom gcode for color change
-comment = "; Change filament"
-beep = "M300 P1000 S4000"       # Signal for filament change procedure
-parkingPos = "X190 Y20"         # Define custom parking position
-pauseCommand = "M600"           # 'M600' by default, ';@pause' is used for Repetier Server  
 nl = "\n"
+comment = "; Change filament"
+beep = "M300 P200 S500"         # Signal for filament change procedure
+parkingPos = "X190 Y20"         # Define custom parking position
+liftUpZ = "Z15"                 # Lift up the nozzle
+if usePrintServer:
+    pauseCommand = ";@pause"    # Pause command for printing via print server  
+else:
+    pauseCommand = "M25"        # Pause command for printing from SD
 
 # Temperature for filament change
 if "PET" in sourceFile:
@@ -45,7 +53,7 @@ for line in fileObjectIn:
         fileObjectOut.write(line)
     elif matchTool:
         if ignoreFirstTool:
-            fileObjectOut.write(comment + nl + beep + nl + "G91" + nl + "M104 S" + preheatTemp + nl + "G0 Z15" + nl + "G90" + nl + "G0 " + parkingPos + nl + pauseCommand + nl + "M109 R" + filamentTemp[int(matchTool.group(1))] + nl + beep + nl + comment + nl)
+            fileObjectOut.write(comment + nl + beep + nl + "M104 S" + preheatTemp + nl + "G91" + nl + "G0 " + liftUpZ + nl + "G90" + nl + "G0 " + parkingPos + nl + pauseCommand + nl + "M109 R" + filamentTemp[int(matchTool.group(1))] + nl + beep + nl + comment + nl)
         else:
             fileObjectOut.write(line)
             ignoreFirstTool = True
